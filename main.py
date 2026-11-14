@@ -72,6 +72,15 @@ def _process_next_window():
     if new_frames.empty:
         raise HTTPException(status_code=500, detail="Simulator produced an empty CAN window.")
     app.state.history_rows.extend(new_frames.to_dict(orient="records"))
+    # Keep only the previous and current five-second windows. This preserves
+    # cross-window inter-arrival timing while preventing unbounded O(history)
+    # feature recomputation from slowing /api/telemetry over time.
+    current_window_start = sim.elapsed - 5.0
+    history_cutoff = current_window_start - 5.0
+    app.state.history_rows = [
+        row for row in app.state.history_rows
+        if float(row["timestamp"]) >= history_cutoff
+    ]
     raw = pd.DataFrame(app.state.history_rows)
     if_package, rf_package = app.state.if_package, app.state.rf_package
     features, X = build_model_matrix(raw, rf_package["feature_columns"])
