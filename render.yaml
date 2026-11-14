@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: project18-predictive-failure-detection
+    runtime: docker
+    plan: free
+    healthCheckPath: /health

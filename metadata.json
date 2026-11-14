@@ -1,0 +1,6 @@
+{
+  "name": "Project 18 — Predictive Failure Detection",
+  "description": "Simulated CAN-bus military vehicle electronics monitoring and predictive failure detection console powered by Mark 24 machine learning models.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
