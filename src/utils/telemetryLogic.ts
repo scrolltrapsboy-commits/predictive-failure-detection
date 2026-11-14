@@ -164,36 +164,46 @@ export function parseStatusResponse(raw: unknown): SystemStatusResponse {
  * Parses GET /api/telemetry payloads from FastAPI.
  */
 export function parseTelemetryResponse(raw: unknown): CanMessage[] {
-  const list = Array.isArray(raw)
+  const data = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  // The Mark 24 FastAPI endpoint returns an aggregated object:
+  // { timestamp, can_channels: { "0x100": { payload_mean, last_payload, ... } } }.
+  // Older API versions may return a plain messages/telemetry/data array.
+  const channelMap = data.can_channels;
+  const list: unknown[] = Array.isArray(raw)
     ? raw
-    : raw && typeof raw === 'object'
-      ? ((raw as Record<string, unknown>).messages ??
-          (raw as Record<string, unknown>).telemetry ??
-          (raw as Record<string, unknown>).data ??
-          [])
-      : [];
-
-  if (!Array.isArray(list)) return [];
+    : Array.isArray(data.messages)
+      ? data.messages
+      : Array.isArray(data.telemetry)
+        ? data.telemetry
+        : Array.isArray(data.data)
+          ? data.data
+          : channelMap && typeof channelMap === 'object'
+            ? Object.entries(channelMap as Record<string, unknown>).map(([can_id, value]) => ({
+                ...(value && typeof value === 'object' ? value as Record<string, unknown> : {}),
+                can_id,
+                timestamp: data.timestamp,
+              }))
+            : [];
 
   return list.map((item, idx) => {
     const row = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
     const canId = normalizeCanId(row.can_id ?? row.canId ?? row.id_hex);
     const channelConfig = CAN_CHANNELS[canId];
-    const parsedPayload = formatPayloadHex(row.payload ?? row.data ?? row.bytes);
+    const parsedPayload = formatPayloadHex(row.payload ?? row.last_payload ?? row.data ?? row.bytes);
     const explicitMean = toFiniteNumber(row.payload_mean ?? row.payloadMean, null);
     const timestamp = String(row.timestamp ?? row.ts ?? new Date().toISOString());
+    const rateHz = toFiniteNumber(row.message_rate_hz ?? row.frequency_hz, null);
+    const intervalMs = toFiniteNumber(row.interval_ms ?? row.message_interval ?? row.intervalMs, null);
 
     return {
       id: String(row.id ?? `${timestamp}-${canId}-${idx}`),
       timestamp,
       canId,
-      channelName: String(row.channel_name ?? row.channelName ?? channelConfig.name),
+      channelName: String(row.channel ?? row.channel_name ?? row.channelName ?? channelConfig.name),
       payloadHex: parsedPayload.hex,
       payloadValues: parsedPayload.values,
       payloadMean: explicitMean !== null ? explicitMean : parsedPayload.mean,
-      intervalMs:
-        toFiniteNumber(row.interval_ms ?? row.message_interval ?? row.intervalMs, null) ??
-        channelConfig.nominalIntervalMs,
+      intervalMs: intervalMs ?? (rateHz !== null && rateHz > 0 ? 1000 / rateHz : channelConfig.nominalIntervalMs),
       status: normalizeCondition(row.status ?? row.severity ?? row.condition),
       source: 'backend',
     };
