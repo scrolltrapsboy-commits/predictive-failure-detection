@@ -29,7 +29,7 @@ async function requestJson<T>(
   baseUrl: string,
   path: string,
   init?: RequestInit,
-  timeoutMs = 3500
+  timeoutMs = 10000
 ): Promise<{ data: T; statusCode: number; url: string }> {
   const url = buildApiUrl(baseUrl, path);
   const controller = new AbortController();
