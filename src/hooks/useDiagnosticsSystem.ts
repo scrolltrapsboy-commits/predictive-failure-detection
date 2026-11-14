@@ -286,7 +286,7 @@ export function useDiagnosticsSystem(): DiagnosticsState {
       if (connectionStateRef.current === 'connected' || tickCounter % 10 === 0) {
         void pollBackend();
       }
-    }, 1500);
+    }, 5000);
     return () => clearInterval(timer);
   }, [apiBaseUrl, pollBackend, testAndSyncNow]);
 
