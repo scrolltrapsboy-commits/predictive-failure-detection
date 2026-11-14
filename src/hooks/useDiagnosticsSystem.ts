@@ -277,7 +277,7 @@ export function useDiagnosticsSystem(): DiagnosticsState {
     await Promise.all([pollBackend(), refreshMetrics()]);
   }, [pollBackend, refreshMetrics]);
 
-  // Initial sync & stable polling loop (1.5s when connected, 15s backoff when disconnected)
+  // Initial sync & stable polling loop (5s when connected, 50s backoff when disconnected)
   useEffect(() => {
     void testAndSyncNow();
     let tickCounter = 0;
